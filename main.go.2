@@ -1,0 +1,48 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"flag"	
+	"bytes"
+	"path/filepath"
+	"github.com/microcosm-cc/bluemonday"
+	"github.com/russross/blackfriday/v2"
+)
+
+const (
+	header = "<html><head><title>Hello</title></head><body>"
+	footer = "</body></html>"
+)
+
+func main(){
+	filename := flag.String("f", "", "File to convert to HTML")
+	flag.Parse()
+
+	if *filename == ""{
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	mdfile, err := os.ReadFile(*filename)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+
+	rawbytes := blackfriday.Run(mdfile)
+	snbytes := bluemonday.UGCPolicy().SanitizeBytes(rawbytes)
+
+	var fileBuffer bytes.Buffer
+	
+	fileBuffer.WriteString(header)
+	fileBuffer.Write(snbytes)
+	fileBuffer.WriteString(footer)
+
+	newFileName := fmt.Sprintf("%s.html", filepath.Base(*filename))
+	err = os.WriteFile(newFileName, fileBuffer.Bytes(), 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(3)
+	}
+}
