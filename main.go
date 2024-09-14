@@ -1,11 +1,11 @@
 package main
 
 import (
+	"io"
 	"fmt"
 	"os"
 	"flag"
 	"bytes"
-	"path/filepath"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -29,29 +29,40 @@ func main(){
 		os.Exit(1)
 	}
 
-	if err := run(*filename); err != nil {
+	if err := run(*filename, os.Stdout); err != nil {
 		fmt.Println("Error processing the file")
 		os.Exit(1)
 	}
 }
 
-func run(filename string) error {
+func run(filename string, out io.Writer) error {
 	file, err := os.ReadFile(filename)
 
 	if err != nil {
 		return err
 	}
 	html := parseContent(file)
-	htmlFilename := fmt.Sprintf("%s.html", filepath.Base(filename))
-	saveHTML(htmlFilename, html)
+
+	temp, err := os.CreateTemp("", "md-*.html")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+	defer temp.Close()
+
+	htmlFileName := temp.Name()
+
+	fmt.Fprintln(out, htmlFileName)
+
+	saveHTML(htmlFileName, html)
 	return nil
 }
 
 func parseContent(file []byte) []byte{
 	output := blackfriday.Run(file)
 	body := bluemonday.UGCPolicy().SanitizeBytes(output)
-	var buffer bytes.Buffer
 
+	var buffer bytes.Buffer
 	buffer.WriteString(header)
 	buffer.Write(body)
 	buffer.WriteString(footer)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"fmt"
 	"testing"
 	"os"
@@ -33,19 +34,26 @@ func TestParseContent(t *testing.T){
 }
 
 func TestRun(t *testing.T){
-	err := run(inputFile)	
+	var buf bytes.Buffer
+	err := run(inputFile, &buf)	
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer os.Remove(resultFile)
+	tempFile := strings.TrimSpace(buf.String())
+	defer os.Remove(tempFile)
 
-	file, _ := os.ReadFile(resultFile)
-
+	file, err := os.ReadFile(tempFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 	expected, _ := os.ReadFile(goldenFile)
 
 	if !bytes.Equal(expected, file){
+		fmt.Printf("%s", expected)
+		fmt.Println("---------")
+		fmt.Printf("%s", file)
 		t.Error("Files are not equal")
 	}
 }
